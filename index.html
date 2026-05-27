@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>月季病虫害知识图谱</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link href="https://unpkg.com/vis-network/standalone/umd/vis-network.min.css" rel="stylesheet" type="text/css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .header {
+            text-align: center;
+            padding: 24px 20px 12px;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .header h2 {
+            font-size: 24px;
+            color: #2c3e50;
+            margin-bottom: 6px;
+        }
+        .header p {
+            font-size: 13px;
+            color: #7f8c8d;
+        }
+        .legend-bar {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px 20px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.7);
+            border-bottom: 1px solid #e8e8e8;
+        }
+        .legend {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 13px;
+            color: #555;
+        }
+        .color-box {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            border: 1px solid rgba(0,0,0,0.15);
+        }
+        #knowledgeGraph {
+            width: 96vw;
+            height: calc(100vh - 140px);
+            margin: 10px auto;
+            border-radius: 8px;
+            border: 1px solid #d0d0d0;
+            background-color: #fdfdfd;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        .footer {
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>🌹 月季病虫害知识图谱可视化</h2>
+        <p>基于一阶谓词逻辑与产生式规则构建 | vis.js 渲染 | 支持拖拽、缩放、悬停查看详情</p>
+    </div>
+
+    <div class="legend-bar">
+        <span class="legend"><span class="color-box" style="background:#4CAF50;"></span>植物</span>
+        <span class="legend"><span class="color-box" style="background:#FF9800;"></span>病害</span>
+        <span class="legend"><span class="color-box" style="background:#00897B;"></span>病原</span>
+        <span class="legend"><span class="color-box" style="background:#546E7A;"></span>病原类别</span>
+        <span class="legend"><span class="color-box" style="background:#2196F3;"></span>症状</span>
+        <span class="legend"><span class="color-box" style="background:#9C27B0;"></span>防治方法</span>
+        <span class="legend"><span class="color-box" style="background:#795548;"></span>农药</span>
+    </div>
+
+    <div id="knowledgeGraph"></div>
+
+    <div class="footer">💡 拖拽节点可调整布局 | 滚轮缩放 | 悬停查看详情 | 按 F12 打开控制台可查看点击信息</div>
+
+    <script>
+        // ==================== 数据区 ====================
+
+        // 1. 节点数据
+        var nodes = new vis.DataSet([
+            // 植物
+            { id: 1,  label: '月季', group: 'plant', title: '月季（Rosa chinensis），蔷薇科蔷薇属，常见观赏植物' },
+
+            // 病害
+            { id: 2,  label: '月季白粉病', group: 'disease', title: '真菌性病害，主要危害叶片、花梗及嫩梢' },
+            { id: 3,  label: '月季霜霉病', group: 'disease', title: '真菌性病害，主要危害下部叶片' },
+            { id: 4,  label: '月季黑斑病', group: 'disease', title: '真菌性病害，主要危害叶片，是月季最常见病害之一' },
+
+            // 病原
+            { id: 5,  label: '蔷薇单丝壳', group: 'pathogen', title: 'Sphaerotheca pannosa，白粉病病原菌' },
+            { id: 6,  label: '霜霉菌', group: 'pathogen', title: 'Peronospora sp.，霜霉病病原菌' },
+            { id: 7,  label: '蔷薇盘二孢', group: 'pathogen', title: 'Marssonina rosae，黑斑病病原菌（有性态）' },
+            { id: 8,  label: '蔷薇双壳菌', group: 'pathogen', title: 'Diplocarpon rosae，黑斑病病原菌（无性态）' },
+
+            // 病原类别
+            { id: 9,  label: '真菌', group: 'pathogen_category', title: 'Fungi，三种病害的病原均属真菌' },
+
+            // 症状
+            { id: 10, label: '白色粉末状霉点', group: 'symptom', title: '白粉病典型症状，叶面覆盖白色粉状物' },
+            { id: 11, label: '叶片卷曲和变厚', group: 'symptom', title: '白粉病导致叶片畸形' },
+            { id: 12, label: '下部叶片背面出现褪绿病斑', group: 'symptom', title: '霜霉病早期症状' },
+            { id: 13, label: '病斑不规则且布满霜状霉层', group: 'symptom', title: '霜霉病特征症状' },
+            { id: 14, label: '病斑后期呈暗紫色似水浸状', group: 'symptom', title: '霜霉病后期症状' },
+            { id: 15, label: '病斑呈多角形逐渐变成灼烧状', group: 'symptom', title: '霜霉病/黑斑病共有症状' },
+            { id: 16, label: '叶片正面出现紫褐色至褐色小斑点', group: 'symptom', title: '黑斑病早期症状' },
+            { id: 17, label: '近圆形黑褐色病斑且边缘呈放射状', group: 'symptom', title: '黑斑病典型症状' },
+            { id: 18, label: '病斑周围形成黄色晕圈或"绿岛"现象', group: 'symptom', title: '黑斑病特征症状' },
+            { id: 19, label: '叶片全部脱落', group: 'symptom', title: '霜霉病/黑斑病严重后果' },
+            { id: 20, label: '植株死亡', group: 'symptom', title: '霜霉病/黑斑病最严重后果' },
+            { id: 21, label: '叶片黄化脱落', group: 'symptom', title: '黑斑病导致叶片黄化' },
+
+            // 防治方法
+            { id: 22, label: '保持良好的通风和光照', group: 'method', title: '农业防治：改善环境条件，降低发病概率' },
+            { id: 25, label: '降低夜间湿度', group: 'method', title: '农业防治：减少叶面结露，抑制霜霉病发生' },
+            { id: 28, label: '滴灌或沟灌', group: 'method', title: '农业防治：避免叶面溅水，减少病菌传播' },
+            { id: 29, label: '增施磷钾肥', group: 'method', title: '农业防治：增强植株抗病力' },
+            { id: 30, label: '清除病残体', group: 'method', title: '农业防治：减少越冬菌源' },
+
+            // 农药
+            { id: 23, label: '50%翠贝干悬浮剂', group: 'pesticide', title: '腈菌唑类杀菌剂，防治白粉病' },
+            { id: 24, label: '25%戊唑醇乳油', group: 'pesticide', title: '三唑类杀菌剂，防治白粉病' },
+            { id: 26, label: '多氧霉素', group: 'pesticide', title: '抗生素类杀菌剂，防治霜霉病' },
+            { id: 27, label: '甲霜灵', group: 'pesticide', title: '苯基酰胺类杀菌剂，防治霜霉病' },
+            { id: 31, label: '波尔多液', group: 'pesticide', title: '无机铜素杀菌剂，防治黑斑病' },
+            { id: 32, label: '百菌清', group: 'pesticide', title: '取代苯类广谱杀菌剂，防治黑斑病' },
+            { id: 33, label: '吡唑醚菌酯', group: 'pesticide', title: '甲氧基丙烯酸酯类杀菌剂，防治黑斑病' }
+        ]);
+
+        // 2. 关系数据
+        var edges = new vis.DataSet([
+            // === 月季白粉病 ===
+            { from: 2,  to: 1,  label: '危害', arrows: 'to' },
+            { from: 2,  to: 10, label: '表现为', arrows: 'to' },
+            { from: 2,  to: 11, label: '导致', arrows: 'to' },
+            { from: 2,  to: 5,  label: '由…引起', arrows: 'to' },
+            { from: 5,  to: 9,  label: '属于', arrows: 'to' },
+            { from: 2,  to: 22, label: '可用…防治', arrows: 'to' },
+            { from: 2,  to: 23, label: '可用…防治', arrows: 'to' },
+            { from: 2,  to: 24, label: '可用…防治', arrows: 'to' },
+
+            // === 月季霜霉病 ===
+            { from: 3,  to: 1,  label: '危害', arrows: 'to' },
+            { from: 3,  to: 12, label: '表现为', arrows: 'to' },
+            { from: 3,  to: 13, label: '表现为', arrows: 'to' },
+            { from: 3,  to: 14, label: '表现为', arrows: 'to' },
+            { from: 3,  to: 15, label: '表现为', arrows: 'to' },
+            { from: 3,  to: 19, label: '导致', arrows: 'to' },
+            { from: 3,  to: 20, label: '导致', arrows: 'to' },
+            { from: 3,  to: 6,  label: '由…引起', arrows: 'to' },
+            { from: 6,  to: 9,  label: '属于', arrows: 'to' },
+            { from: 3,  to: 25, label: '可用…防治', arrows: 'to' },
+            { from: 3,  to: 26, label: '可用…防治', arrows: 'to' },
+            { from: 3,  to: 27, label: '可用…防治', arrows: 'to' },
+
+            // === 月季黑斑病 ===
+            { from: 4,  to: 1,  label: '危害', arrows: 'to' },
+            { from: 4,  to: 16, label: '表现为', arrows: 'to' },
+            { from: 4,  to: 17, label: '表现为', arrows: 'to' },
+            { from: 4,  to: 18, label: '表现为', arrows: 'to' },
+            { from: 4,  to: 15, label: '表现为', arrows: 'to' },
+            { from: 4,  to: 21, label: '导致', arrows: 'to' },
+            { from: 4,  to: 19, label: '导致', arrows: 'to' },
+            { from: 4,  to: 20, label: '导致', arrows: 'to' },
+            { from: 4,  to: 7,  label: '由…引起', arrows: 'to' },
+            { from: 4,  to: 8,  label: '由…引起', arrows: 'to' },
+            { from: 7,  to: 9,  label: '属于', arrows: 'to' },
+            { from: 8,  to: 9,  label: '属于', arrows: 'to' },
+            { from: 4,  to: 28, label: '可用…防治', arrows: 'to' },
+            { from: 4,  to: 29, label: '可用…防治', arrows: 'to' },
+            { from: 4,  to: 30, label: '可用…防治', arrows: 'to' },
+            { from: 4,  to: 31, label: '可用…防治', arrows: 'to' },
+            { from: 4,  to: 32, label: '可用…防治', arrows: 'to' },
+            { from: 4,  to: 33, label: '可用…防治', arrows: 'to' }
+        ]);
+
+        // ==================== 数据区结束 ====================
+
+        var data = { nodes: nodes, edges: edges };
+
+        var options = {
+            nodes: {
+                shape: 'dot',
+                size: 22,
+                font: { size: 13, align: 'center', face: 'Microsoft YaHei, PingFang SC, sans-serif' },
+                borderWidth: 2,
+                shadow: true
+            },
+            edges: {
+                width: 1.8,
+                color: { inherit: 'from', opacity: 0.7 },
+                font: { size: 11, align: 'horizontal', background: 'rgba(255,255,255,0.85)', face: 'Microsoft YaHei, PingFang SC, sans-serif' },
+                smooth: { type: 'dynamic' },
+                arrows: { to: { enabled: true, scaleFactor: 0.5 } }
+            },
+            groups: {
+                plant:           { color: { background: '#4CAF50', border: '#2E7D32', highlight: { background: '#66BB6A', border: '#2E7D32' } }, size: 30 },
+                disease:         { color: { background: '#FF9800', border: '#EF6C00', highlight: { background: '#FFB74D', border: '#EF6C00' } }, size: 26 },
+                pathogen:        { color: { background: '#00897B', border: '#00695C', highlight: { background: '#26A69A', border: '#00695C' } }, size: 22 },
+                pathogen_category:{ color: { background: '#546E7A', border: '#37474F', highlight: { background: '#78909C', border: '#37474F' } }, size: 22 },
+                symptom:         { color: { background: '#2196F3', border: '#1565C0', highlight: { background: '#64B5F6', border: '#1565C0' } }, size: 18 },
+                method:          { color: { background: '#9C27B0', border: '#6A1B9A', highlight: { background: '#BA68C8', border: '#6A1B9A' } }, size: 20 },
+                pesticide:       { color: { background: '#795548', border: '#4E342E', highlight: { background: '#A1887F', border: '#4E342E' } }, size: 20 }
+            },
+            interaction: {
+                hover: true,
+                dragNodes: true,
+                zoomView: true,
+                dragView: true,
+                tooltipDelay: 150,
+                navigationButtons: true,
+                keyboard: true
+            },
+            physics: {
+                enabled: true,
+                solver: 'forceAtlas2Based',
+                forceAtlas2Based: {
+                    gravitationalConstant: -60,
+                    centralGravity: 0.01,
+                    springLength: 120,
+                    springConstant: 0.06
+                },
+                stabilization: { iterations: 300 }
+            }
+        };
+
+        var container = document.getElementById('knowledgeGraph');
+        var network = new vis.Network(container, data, options);
+
+        network.on('click', function(params) {
+            if (params.nodes.length > 0) {
+                var nodeId = params.nodes[0];
+                var node = nodes.get(nodeId);
+                console.log('点击了节点:', node.label, '| 类别:', node.group, '| 详情:', node.title);
+            }
+        });
+    </script>
+</body>
+</html>
